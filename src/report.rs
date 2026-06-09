@@ -125,19 +125,19 @@ pub fn render(sessions: &[SessionRecord], cfg: &Config, by: Option<&str>) -> Str
     }
 
     out.push_str(&render_quadrant_block(&scored));
-    out.push_str("\n");
+    out.push('\n');
     out.push_str(&render_totals(&scored));
-    out.push_str("\n");
+    out.push('\n');
     out.push_str(&render_top(&scored, "Top value", 3, true));
-    out.push_str("\n");
+    out.push('\n');
     out.push_str(&render_top(&scored, "Top waste", 3, false));
 
     if matches!(by, Some("project")) {
-        out.push_str("\n");
+        out.push('\n');
         out.push_str(&render_by_project(&scored));
     }
 
-    out.push_str("\n");
+    out.push('\n');
     out.push_str(FOOTER);
     out
 }

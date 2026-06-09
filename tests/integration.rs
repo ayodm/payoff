@@ -76,6 +76,51 @@ fn install_status_uninstall_roundtrip() {
 }
 
 #[test]
+fn install_migrates_legacy_flat_entries() {
+    // Reproduces the v0.1.x bug: settings.json has our hooks in the flat
+    // shape `{type, command}` that /doctor flags as invalid. Re-running
+    // install must rewrite them as the wrapped shape Claude Code expects,
+    // without adding duplicates.
+    let config = TempDir::new().unwrap();
+    let settings = config.path().join("settings.json");
+    let legacy = json!({
+        "hooks": {
+            "SessionStart": [
+                { "type": "command", "command": "claude-time hook session-start" }
+            ],
+            "SessionEnd": [
+                { "type": "command", "command": "claude-time hook session-end" }
+            ]
+        }
+    });
+    std::fs::write(&settings, serde_json::to_string(&legacy).unwrap()).unwrap();
+
+    bin(config.path())
+        .arg("install")
+        .assert()
+        .success()
+        .stdout(contains("Migrated 2 legacy hook entries"));
+
+    let raw = std::fs::read_to_string(&settings).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+
+    // Each event has exactly one entry, and that entry is a hook group with
+    // our command inside `hooks: [...]` — the shape /doctor accepts.
+    for (event, command) in [
+        ("SessionStart", "claude-time hook session-start"),
+        ("SessionEnd", "claude-time hook session-end"),
+    ] {
+        let arr = v["hooks"][event].as_array().unwrap();
+        assert_eq!(arr.len(), 1, "{event} has exactly one entry");
+        assert!(arr[0].get("command").is_none(), "{event} entry is not flat");
+        let inner = arr[0]["hooks"].as_array().unwrap();
+        assert_eq!(inner.len(), 1);
+        assert_eq!(inner[0]["command"], command);
+        assert_eq!(inner[0]["type"], "command");
+    }
+}
+
+#[test]
 fn install_preserves_unrelated_user_hooks() {
     let config = TempDir::new().unwrap();
     let settings = config.path().join("settings.json");

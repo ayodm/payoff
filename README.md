@@ -5,6 +5,15 @@
 [![crates.io downloads](https://img.shields.io/crates/d/claude-time.svg)](https://crates.io/crates/claude-time)
 [![license](https://img.shields.io/crates/l/claude-time.svg)](LICENSE)
 
+> **Heads up — v0.1.2 is experimental.** This release fixes the hook
+> registration shape that Claude Code's settings validator rejected in
+> v0.1.x (`/doctor` flagged `hooks.SessionEnd.0.hooks: Expected array`)
+> and migrates legacy entries on install. The migration logic is
+> covered by 49 tests, but it has **not yet been validated against a
+> live Claude Code session** firing the migrated hook. If `claude-time
+> status` reports `2 / 2` but `~/.claude/claude-time/sessions/` stays
+> empty across a few sessions, file an issue.
+
 Passive-only ROI tracker for Claude Code sessions.
 
 Most tools tell you *what you did* with AI. None tell you *whether it was

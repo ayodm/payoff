@@ -1,0 +1,19 @@
+{
+  "name": "claude-time",
+  "owner": {
+    "name": "ayodm",
+    "url": "https://github.com/ayodm"
+  },
+  "description": "claude-time marketplace — currently hosts one plugin.",
+  "plugins": [
+    {
+      "name": "claude-time",
+      "source": ".",
+      "description": "Passive ROI tracker for Claude Code sessions.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": ["productivity", "telemetry", "roi", "retention"],
+      "homepage": "https://github.com/ayodm/claude-time"
+    }
+  ]
+}

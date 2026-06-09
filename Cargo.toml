@@ -3,10 +3,14 @@ name = "claude-time"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Passive-only ROI tracker for Claude Code sessions. Substitutes diff retention for time-saved-baseline."
+description = "Passive-only ROI tracker for Claude Code sessions. Substitutes diff retention for time-saved baseline."
 readme = "README.md"
 keywords = ["claude", "claude-code", "productivity", "telemetry"]
 categories = ["command-line-utilities", "development-tools"]
+repository = "https://github.com/ayodm/claude-time"
+homepage = "https://github.com/ayodm/claude-time"
+authors = ["Ayo Mosanya"]
+rust-version = "1.75"
 
 [[bin]]
 name = "claude-time"

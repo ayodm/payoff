@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "claude-time hook session-start"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "claude-time hook session-end"
+      }
+    ]
+  }
+}

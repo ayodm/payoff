@@ -1,5 +1,10 @@
 # claude-time
 
+[![CI](https://github.com/ayodm/claude-time/actions/workflows/ci.yml/badge.svg)](https://github.com/ayodm/claude-time/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/claude-time.svg)](https://crates.io/crates/claude-time)
+[![crates.io downloads](https://img.shields.io/crates/d/claude-time.svg)](https://crates.io/crates/claude-time)
+[![license](https://img.shields.io/crates/l/claude-time.svg)](LICENSE)
+
 Passive-only ROI tracker for Claude Code sessions.
 
 Most tools tell you *what you did* with AI. None tell you *whether it was
@@ -49,12 +54,38 @@ looking at.
 
 ## Install
 
+Three routes — pick whichever fits.
+
+**A. Rust users (smallest binary, latest version)**
+
 ```sh
 cargo install claude-time
-claude-time install      # patches ~/.claude/settings.json with hooks
+claude-time install
 ```
 
-Verify:
+**B. No Rust toolchain (pre-built binary)**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ayodm/claude-time/main/installer.sh | bash
+claude-time install
+```
+
+**C. Claude Code plugin (hooks bundled, you still install the binary)**
+
+```sh
+# In Claude Code:
+/plugin marketplace add ayodm/claude-time
+/plugin install claude-time@claude-time
+
+# Then on your shell:
+cargo install claude-time          # or use route B
+```
+
+The plugin registers the SessionStart + SessionEnd hooks and ships a
+companion skill (`claude-time-report`) that explains the markdown report on
+demand. You still need the binary on `$PATH` for the hooks to do anything.
+
+Verify any of the above:
 
 ```sh
 claude-time status
@@ -118,6 +149,18 @@ paths = [".git", "node_modules", "target", "dist", ".next", "_build", "deps"]
 
 `hourly_rate_usd > 0` adds your time cost into the cost-side of the quadrant
 (useful if you want to compare against your own effective hourly rate).
+
+## Adoption
+
+claude-time is intentionally untelemetered — no install beacon, no upload of
+session data, nothing leaves your machine. Adoption shows up only via
+registry-native counts:
+
+- crates.io download counts on the [package page](https://crates.io/crates/claude-time)
+- GitHub Release asset download counts on each [release](https://github.com/ayodm/claude-time/releases)
+- GitHub stars / forks / traffic insights
+
+If you find it useful, a star on GitHub is the most direct signal.
 
 ## Honest caveats
 

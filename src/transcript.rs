@@ -20,12 +20,20 @@ pub struct TranscriptStats {
     /// Per-file edit count across Edit / Write / MultiEdit / NotebookEdit
     /// tool calls. High counts on a low-retention file = pinpoint waste.
     pub per_file_edits: BTreeMap<String, u32>,
+    /// Ordered tool-call names. Bounded by TOOL_SEQUENCE_CAP so long
+    /// sessions don't bloat the on-disk record.
+    pub tool_sequence: Vec<String>,
     pub total_cost_usd: f64,
     pub input_tokens: u64,
     pub output_tokens: u64,
     pub cache_read_tokens: u64,
     pub cache_creation_tokens: u64,
 }
+
+/// Upper bound on `tool_sequence` length. 200 is enough to characterize a
+/// session's tool pattern (Edit-without-Read detection, common 3-grams)
+/// while keeping the worst-case record size predictable.
+pub const TOOL_SEQUENCE_CAP: usize = 200;
 
 /// Tool names whose `input.file_path` we want to capture as "files modified."
 const FILE_EDIT_TOOLS: &[&str] = &["Edit", "Write", "MultiEdit", "NotebookEdit"];
@@ -101,6 +109,11 @@ fn ingest_entry(
             if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
                 if let Some(name) = block.get("name").and_then(|n| n.as_str()) {
                     *stats.tool_calls.entry(name.to_string()).or_default() += 1;
+                    // Preserve order for the correlation layer. Drop once
+                    // we hit the cap — early tools characterize the session.
+                    if stats.tool_sequence.len() < TOOL_SEQUENCE_CAP {
+                        stats.tool_sequence.push(name.to_string());
+                    }
                     if FILE_EDIT_TOOLS.contains(&name) {
                         if let Some(path) = block
                             .get("input")
@@ -232,6 +245,45 @@ mod tests {
         writeln!(f, "{}", r#"{"message": {"role": "user", "content": []}}"#).unwrap();
         let stats = parse(f.path()).unwrap();
         assert_eq!(stats.turn_count, 2);
+    }
+
+    #[test]
+    fn tool_sequence_preserves_order_within_cap() {
+        // Three tools in this order: Read, Edit, Bash. Sequence must reflect
+        // that — the correlation layer depends on order for pattern mining.
+        let f = jsonl(&[serde_json::json!({
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "name": "Read", "input": {"file_path": "/a"}},
+                    {"type": "tool_use", "name": "Edit", "input": {"file_path": "/a"}},
+                    {"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}
+                ]
+            }
+        })]);
+        let s = parse(f.path()).unwrap();
+        assert_eq!(s.tool_sequence, vec!["Read", "Edit", "Bash"]);
+    }
+
+    #[test]
+    fn tool_sequence_caps_at_200() {
+        // Construct a transcript with 300 tool calls; sequence must stop at 200.
+        let mut blocks: Vec<serde_json::Value> = Vec::with_capacity(300);
+        for _ in 0..300 {
+            blocks.push(
+                serde_json::json!({"type": "tool_use", "name": "Bash", "input": {"command": "x"}}),
+            );
+        }
+        let f = jsonl(&[serde_json::json!({
+            "message": {"role": "assistant", "content": blocks}
+        })]);
+        let s = parse(f.path()).unwrap();
+        assert_eq!(s.tool_sequence.len(), TOOL_SEQUENCE_CAP);
+        assert_eq!(
+            s.tool_calls.get("Bash").copied(),
+            Some(300),
+            "tool_calls counts ALL invocations"
+        );
     }
 
     #[test]

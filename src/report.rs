@@ -122,6 +122,8 @@ pub fn render(sessions: &[SessionRecord], cfg: &Config, by: Option<&str>) -> Str
 
     out.push_str(&render_quadrant_block(&scored));
     out.push('\n');
+    out.push_str(&render_drivers(sessions));
+    out.push('\n');
     out.push_str(&render_totals(&scored));
     out.push('\n');
     out.push_str(&render_top(&scored, "Top value", 3, true));
@@ -236,6 +238,71 @@ fn render_totals(scored: &[Scored]) -> String {
         | Lines surviving in HEAD | {surviving} ({retention_pct:.0}%) |
         {cache_row}{model_row}"#,
     }
+}
+
+fn render_drivers(sessions: &[SessionRecord]) -> String {
+    use crate::correlate::{baseline, group_by_driver, DriverKey};
+    let groups = group_by_driver(sessions);
+    if groups.is_empty() {
+        return String::new();
+    }
+    let base = baseline(sessions);
+    let base_ret_pct = base
+        .avg_retention
+        .map(|r| format!("{:.0}%", r * 100.0))
+        .unwrap_or_else(|| "-".to_string());
+
+    use std::collections::BTreeMap;
+    let mut by_type: BTreeMap<&'static str, Vec<&crate::correlate::DriverGroup>> = BTreeMap::new();
+    for g in &groups {
+        by_type.entry(g.key.type_slug()).or_default().push(g);
+    }
+
+    let mut out = String::new();
+    out.push_str("## Drivers\n\n");
+    out.push_str(&format!(
+        "_Baseline avg retention: {base_ret_pct} across {n} session(s). Groups with <3 sessions hidden. Correlation, not causation._\n\n",
+        n = base.n
+    ));
+    for (slug, gs) in &by_type {
+        let label = match *slug {
+            "skill" => "By skill",
+            "claude_md" => "By CLAUDE.md version",
+            "hook_event" => "By hook event",
+            "model" => "By model",
+            "edit_pattern" => "By edit pattern",
+            other => other,
+        };
+        out.push_str(&format!("### {label}\n\n"));
+        out.push_str("| Group | N | Avg retention | Δ baseline | Avg cost |\n");
+        out.push_str("|-------|---|---------------|------------|----------|\n");
+        for g in gs {
+            let key_display = match &g.key {
+                DriverKey::Skill(s) => s.clone(),
+                DriverKey::ClaudeMdHash(h) => format!("#{}", &h[..h.len().min(8)]),
+                DriverKey::HookEvent(e) => e.clone(),
+                DriverKey::Model(m) => m.clone(),
+                DriverKey::EditWithoutPriorRead(true) => "edit-without-prior-read".to_string(),
+                DriverKey::EditWithoutPriorRead(false) => "read-first".to_string(),
+            };
+            let ret = g
+                .avg_retention
+                .map(|r| format!("{:.0}%", r * 100.0))
+                .unwrap_or_else(|| "-".to_string());
+            let delta = match (g.avg_retention, base.avg_retention) {
+                (Some(r), Some(b)) => format!("{:+.0}pt", (r - b) * 100.0),
+                _ => "-".to_string(),
+            };
+            out.push_str(&format!(
+                "| {key} | {n} | {ret} | {delta} | ${cost:.4} |\n",
+                key = key_display,
+                n = g.n,
+                cost = g.avg_cost,
+            ));
+        }
+        out.push('\n');
+    }
+    out
 }
 
 fn render_top(scored: &[Scored], heading: &str, n: usize, value: bool) -> String {

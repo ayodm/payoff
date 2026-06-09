@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod config;
+pub mod correlate;
 pub mod env_capture;
 pub mod git_history;
 pub mod hooks;

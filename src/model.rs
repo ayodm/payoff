@@ -57,6 +57,13 @@ pub struct SessionRecord {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub per_file_edits: BTreeMap<String, u32>,
 
+    /// Ordered list of tool-call names as they appeared in the transcript.
+    /// Capped at 200 entries to bound storage for long sessions. The
+    /// correlation layer mines this for patterns like
+    /// "Edit-without-prior-Read" and `Bash(grep) → Read → Edit` 3-grams.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_sequence: Vec<String>,
+
     // Populated from git diff at SessionEnd.
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub lines_added: u32,

@@ -62,6 +62,15 @@ fn handle(req: Request) -> Result<()> {
             let id = &path["/session/".len()..];
             respond_html(req, &session_fragment(&cfg, id)?)
         }
+        path if path.starts_with("/driver/") => {
+            // /driver/{type}/{key} → list sessions in that driver group.
+            let rest = &path["/driver/".len()..];
+            let (type_slug, key) = match rest.split_once('/') {
+                Some((t, k)) => (t.to_string(), k.to_string()),
+                None => return respond(req, 400, "driver requires /type/key"),
+            };
+            respond_html(req, &driver_fragment(&cfg, &type_slug, &key)?)
+        }
         "/healthz" => respond(req, 200, "ok"),
         _ => respond(req, 404, "not found"),
     }
@@ -162,6 +171,71 @@ fn severity_class(s: crate::model::PinpointSeverity) -> &'static str {
         Iterated => "iterated",
         Lost => "lost",
     }
+}
+
+fn driver_fragment(cfg: &Config, type_slug: &str, key_encoded: &str) -> Result<String> {
+    use crate::correlate::{group_by_driver, DriverKey};
+    let key = percent_decode(key_encoded);
+    // Same window the headline report uses (7d) so the drill-in matches
+    // what the user clicked. A future enhancement could thread `since`
+    // through as a query param.
+    let cutoff = crate::report::parse_since("7d")?;
+    let mut sessions = crate::report::load_sessions_since(cutoff)?;
+    sessions.extend(crate::storage::load_archive_since(cutoff)?);
+    let groups = group_by_driver(&sessions);
+
+    // Find the matching group. The matching predicate is per type_slug.
+    let group = groups.into_iter().find(|g| match (&g.key, type_slug) {
+        (DriverKey::Skill(s), "skill") => s == &key,
+        (DriverKey::ClaudeMdHash(h), "claude_md") => h == &key,
+        (DriverKey::HookEvent(e), "hook_event") => e == &key,
+        (DriverKey::Model(m), "model") => m == &key,
+        (DriverKey::EditWithoutPriorRead(true), "edit_pattern") => key == "edit_without_prior_read",
+        (DriverKey::EditWithoutPriorRead(false), "edit_pattern") => key == "read_first",
+        _ => false,
+    });
+
+    let Some(group) = group else {
+        return Ok(format!(
+            r#"<p class="muted">No group matched type=<code>{}</code> key=<code>{}</code> (it may have aged out of the window or fallen under the 3-session minimum).</p>"#,
+            escape(type_slug),
+            escape(&key)
+        ));
+    };
+
+    let mut rows = String::new();
+    let hourly = cfg.report.hourly_rate_usd;
+    for s in &group.sessions {
+        let total_cost = s.total_cost(hourly);
+        let retention = match crate::git_history::score(s)
+            .unwrap_or(crate::model::RetentionOutcome::NoChanges)
+        {
+            crate::model::RetentionOutcome::Scored(r) => format!("{:.0}%", r * 100.0),
+            crate::model::RetentionOutcome::NonGit => "no-git".into(),
+            crate::model::RetentionOutcome::Rebased => "rebased".into(),
+            crate::model::RetentionOutcome::NoChanges => "no-diff".into(),
+        };
+        rows.push_str(&format!(
+            r#"<tr><td><code class="sid">{sid}</code></td><td>{project}</td><td class="num">{lines_added}</td><td class="num">{retention}</td><td class="num">${cost:.4}</td></tr>"#,
+            sid = escape(&s.session_id[..s.session_id.len().min(12)]),
+            project = escape(s.project.as_deref().unwrap_or("-")),
+            lines_added = s.lines_added,
+            cost = total_cost,
+        ));
+    }
+
+    Ok(format!(
+        r#"<div class="driver-detail-body">
+  <p class="muted small">N={n} · avg retention {ret} · avg cost ${cost:.4}</p>
+  <table class="data"><thead><tr><th>Session</th><th>Project</th><th>Lines+</th><th>Retention</th><th>Cost</th></tr></thead><tbody>{rows}</tbody></table>
+</div>"#,
+        n = group.n,
+        ret = group
+            .avg_retention
+            .map(|r| format!("{:.0}%", r * 100.0))
+            .unwrap_or_else(|| "-".to_string()),
+        cost = group.avg_cost,
+    ))
 }
 
 fn find_session(session_id: &str) -> Result<Option<SessionRecord>> {

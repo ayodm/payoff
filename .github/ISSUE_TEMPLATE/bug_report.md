@@ -15,7 +15,7 @@ labels: bug
 
 **Environment**
 
-- `claude-time --version`:
+- `payoff --version`:
 - OS + arch:
 - Claude Code version:
 - Installed via: `cargo install` / GitHub Release binary / Homebrew / plugin

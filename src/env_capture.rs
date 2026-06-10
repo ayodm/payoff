@@ -202,25 +202,38 @@ fn read_skill(skill_md: &Path, skill_dir: &Path) -> Option<(String, String)> {
 }
 
 fn collect_plugin_skills(claude_dir: &Path, enabled: &[String], out: &mut Vec<SkillRef>) {
-    // Plugin enable keys look like "plugin@marketplace". Disabled plugins
-    // are not counted as "active skills" even if their files exist on disk.
-    let marketplaces_dir = claude_dir.join("plugins").join("marketplaces");
-    let Ok(mp_entries) = fs::read_dir(&marketplaces_dir) else {
-        return;
-    };
-    for mp in mp_entries.flatten() {
-        let marketplace = mp.file_name().to_string_lossy().to_string();
-        let Ok(plugins) = fs::read_dir(mp.path()) else {
+    // The installed copy of each plugin lives under
+    //   ~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/<skill>/SKILL.md
+    // keyed by the same "<plugin>@<marketplace>" identifier that settings.json
+    // records in `enabledPlugins`. We walk the cache tree rather than
+    // `marketplaces/`, because a marketplace nests its plugins under
+    // per-marketplace subdirs (`plugins/`, `external_plugins/`, …) whose layout
+    // varies, while the cache path is uniform and enable-key-addressable. Only
+    // enabled plugins are walked; disabled ones never become "active skills".
+    let cache_dir = claude_dir.join("plugins").join("cache");
+    for key in enabled {
+        let Some((plugin, marketplace)) = key.split_once('@') else {
             continue;
         };
-        for plugin in plugins.flatten() {
-            let plugin_name = plugin.file_name().to_string_lossy().to_string();
-            let enable_key = format!("{plugin_name}@{marketplace}");
-            if !enabled.iter().any(|e| e == &enable_key) {
-                continue;
+        let plugin_dir = cache_dir.join(marketplace).join(plugin);
+        let Ok(versions) = fs::read_dir(&plugin_dir) else {
+            continue;
+        };
+        // A plugin dir holds one subdir per installed version. An upgrade can
+        // leave more than one on disk, so dedupe skills by name across them.
+        let mut seen = std::collections::BTreeSet::new();
+        for version in versions.flatten() {
+            let mut found = Vec::new();
+            collect_skills_in(
+                &version.path().join("skills"),
+                SkillSource::Plugin(plugin.to_string()),
+                &mut found,
+            );
+            for skill in found {
+                if seen.insert(skill.name.clone()) {
+                    out.push(skill);
+                }
             }
-            let skills_dir = plugin.path().join("skills");
-            collect_skills_in(&skills_dir, SkillSource::Plugin(plugin_name.clone()), out);
         }
     }
 }
@@ -403,16 +416,17 @@ mod tests {
     fn plugin_skills_only_count_when_enabled() {
         let tmp = TempDir::new().unwrap();
         let claude = tmp.path().to_path_buf();
+        // Cache layout: plugins/cache/<marketplace>/<plugin>/<version>/skills/.
         // Disabled plugin → its skill must not appear.
         write(
             &claude,
-            "plugins/marketplaces/mp1/disabled-plugin/skills/foo/SKILL.md",
+            "plugins/cache/mp1/disabled-plugin/1.0.0/skills/foo/SKILL.md",
             "x",
         );
         // Enabled plugin → its skill must appear.
         write(
             &claude,
-            "plugins/marketplaces/mp1/enabled-plugin/skills/bar/SKILL.md",
+            "plugins/cache/mp1/enabled-plugin/1.0.0/skills/bar/SKILL.md",
             "y",
         );
 
@@ -424,6 +438,35 @@ mod tests {
             out[0].source,
             SkillSource::Plugin("enabled-plugin".to_string())
         );
+    }
+
+    #[test]
+    fn plugin_skills_deduped_across_leftover_versions() {
+        // An upgrade can leave two version dirs on disk. The same skill name
+        // present in both must be reported once, not twice.
+        let tmp = TempDir::new().unwrap();
+        let claude = tmp.path().to_path_buf();
+        write(
+            &claude,
+            "plugins/cache/mp1/p/1.0.0/skills/shared/SKILL.md",
+            "old",
+        );
+        write(
+            &claude,
+            "plugins/cache/mp1/p/2.0.0/skills/shared/SKILL.md",
+            "new",
+        );
+        write(
+            &claude,
+            "plugins/cache/mp1/p/2.0.0/skills/fresh/SKILL.md",
+            "only-in-new",
+        );
+
+        let mut out = Vec::new();
+        collect_plugin_skills(&claude, &["p@mp1".to_string()], &mut out);
+        let mut names: Vec<&str> = out.iter().map(|s| s.name.as_str()).collect();
+        names.sort();
+        assert_eq!(names, vec!["fresh", "shared"], "got {out:?}");
     }
 
     #[test]
@@ -514,15 +557,15 @@ mod tests {
             "enabledPlugins": { "alpha@mp1": true, "beta@mp1": false }
         }"#,
         );
-        // Plugin marketplace skill: alpha is enabled, beta isn't.
+        // Plugin cache skill: alpha is enabled, beta isn't.
         write(
             &claude,
-            "plugins/marketplaces/mp1/alpha/skills/alpha-skill/SKILL.md",
+            "plugins/cache/mp1/alpha/1.0.0/skills/alpha-skill/SKILL.md",
             "alpha body",
         );
         write(
             &claude,
-            "plugins/marketplaces/mp1/beta/skills/beta-skill/SKILL.md",
+            "plugins/cache/mp1/beta/1.0.0/skills/beta-skill/SKILL.md",
             "beta body",
         );
         write(&claude, "CLAUDE.md", "user-global CLAUDE.md");

@@ -13,8 +13,9 @@
 > SessionStart/SessionEnd flow plus adversarial inputs: path-traversal
 > session IDs, malformed settings.json, mid-session CLAUDE.md rewrites,
 > concurrent sessions in different repos, XSS via stored fields) all
-> pass. Remaining unvalidated gap: observing the hook fire from inside
-> a real Claude Code session rather than from the synthetic harness.
+> pass. The SessionStart/SessionEnd hooks are confirmed firing from
+> inside real Claude Code sessions, with driver capture (model, CLAUDE.md
+> hashes, enabled plugins, plugin-bundled skills) populating live records.
 
 Passive ROI tracker for AI coding sessions. Did the session pay off?
 

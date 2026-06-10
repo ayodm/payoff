@@ -236,10 +236,18 @@ status flag. crates.io respects semver pre-release identifiers — bare
 
 ## Follow-ups (not in v0.2.0)
 
-- **Validate v0.2.0 in live sessions** — open real Claude Code
-  sessions and confirm `~/.claude/payoff/sessions/*.json` populates
-  with non-empty `active_skills`, `claude_md_files`, `active_hook_events`.
-  Until that's done, the "experimental" disclaimer stays.
+- **Live-session validation — DONE.** The SessionStart/SessionEnd hooks
+  are confirmed firing from inside real Claude Code sessions;
+  `~/.claude/payoff/sessions/*.json` populates with real `model`,
+  `claude_md_files`, and `enabled_plugins`. Plugin-skill discovery in
+  `env_capture.rs` was fixed to walk the `plugins/cache/<mp>/<plugin>/
+  <version>/skills/` layout (the old `marketplaces/` path matched
+  nothing) and verified to capture a real plugin skill. The
+  "experimental" disclaimer is retired. Two fields stay environment-
+  dependent (not defects): `active_skills` is empty unless a
+  skill-bearing plugin is enabled or a `~/.claude/skills/` entry exists,
+  and `active_hook_events` is empty when the only `settings.json` hooks
+  are payoff's own (self-excluded).
 - **Phase 3 — `UserPromptSubmit` hook** for prompt-shape capture (length,
   has-code-block, question vs command). Higher risk: third hook event,
   install migration impact, Claude Code payload key unverified. See plan.

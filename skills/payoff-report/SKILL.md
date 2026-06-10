@@ -1,44 +1,47 @@
 ---
-name: claude-time-report
-description: Use when the user asks "is Claude saving me time", "show my claude-time report", "where am I wasting time", or wants to interpret a claude-time HTML report. Runs `claude-time report` with the right flags, opens the HTML in their browser, then explains the waste pinpoints + quadrant in plain English.
+name: payoff-report
+description: Use when the user asks "did my AI session pay off?", "show my payoff report", "where am I wasting time?", or wants to interpret a payoff HTML report. Runs `payoff report` with the right flags, opens the HTML in their browser, then explains the waste pinpoints + quadrant in plain English.
 ---
 
-# claude-time-report
+# payoff-report
+
+`payoff` was previously published as `claude-time` — the migration is
+handled automatically on first install (data dir + hook entries migrate).
 
 ## When this skill fires
 
-The user is asking about ROI on their Claude Code usage. Likely phrasings:
+The user is asking about ROI on their AI Code session. Likely phrasings:
 
-- "is Claude saving me time?"
-- "show my claude-time report"
+- "did this session pay off?"
+- "show my payoff report"
 - "where am I wasting time?"
 - "what's my retention rate?"
 - "explain this report"
 
 ## Run the report
 
-Default: writes self-contained HTML to `~/.claude/claude-time/last-report.html`
+Default: writes self-contained HTML to `~/.claude/payoff/last-report.html`
 and opens it in the browser.
 
 ```sh
-claude-time report --since 7d
+payoff report --since 7d
 ```
 
 Variants:
 
 ```sh
-claude-time report --since 30d --by project   # monthly, per-project
-claude-time report --serve --port 7878        # live HTMX-driven server
-claude-time report --stdout                   # HTML to stdout (CI / piping)
-claude-time report --markdown                 # legacy markdown for terminal
-claude-time status                            # is the tracker installed?
+payoff report --since 30d --by project   # monthly, per-project
+payoff report --serve --port 7878        # live HTMX-driven server
+payoff report --stdout                   # HTML to stdout (CI / piping)
+payoff report --markdown                 # legacy markdown for terminal
+payoff status                            # is the tracker installed?
 ```
 
-If `claude-time` is not on PATH, suggest:
-`cargo install claude-time` or
-`/plugin marketplace add ayodm/claude-time` then
-`/plugin install claude-time@claude-time`
-(see https://github.com/ayodm/claude-time#install).
+If `payoff` is not on PATH, suggest:
+`cargo install payoff` or
+`/plugin marketplace add ayodm/payoff` then
+`/plugin install payoff@payoff`
+(see https://github.com/ayodm/payoff#install).
 
 ## How to explain the report
 
@@ -54,6 +57,12 @@ to the most common question. Walk the user through the top 3 pinpoints:
 
 Each pinpoint shows the explanation column ("Why") in plain English — read
 that to the user.
+
+Then the **Drivers** section groups sessions by environment feature (which
+skills were active, which CLAUDE.md hash, which model, edit pattern) and
+shows retention/cost deltas vs the all-sessions baseline. Use this to
+answer "did changing X help?" — but flag that it's correlation, not
+causation.
 
 Then the **Quadrant** block summarizes whole sessions:
 
@@ -75,12 +84,13 @@ Plus three non-scored outcomes:
 If the user wants to *explore* rather than just read, start the server:
 
 ```sh
-claude-time report --serve
+payoff report --serve
 ```
 
-This opens an HTMX-driven page where clicking a session row expands to show:
-per-file pinpoints, tool-call mix, exact tokens, full cwd. Useful for
-debugging a specific bad session.
+This opens an HTMX-driven page where clicking a session row expands to show
+per-file pinpoints, tool-call mix, exact tokens, full cwd. Clicking a
+driver row drills into the sessions in that group. Useful for debugging a
+specific bad session.
 
 ## What the report does NOT measure
 
@@ -91,6 +101,8 @@ Always remind the user — the footer says it, but it's important:
 - No subjective satisfaction
 - No learning value (a session that taught something has long-tail value
   retention can't see)
+- Correlations in the Drivers section are not causation — pin a CLAUDE.md
+  hash and toggle one feature to compare cleanly.
 
 ## Common follow-ups
 
@@ -103,9 +115,9 @@ Always remind the user — the footer says it, but it's important:
 - **"My retention is low — is Claude bad?"** Could be: aggressive squash
   workflow (high REBASED count signals this), exploratory work that
   legitimately iterates, or genuine quality issues. Run
-  `claude-time report --by project` to isolate which projects are dragging
+  `payoff report --by project` to isolate which projects are dragging
   the number down.
-- **"How do I add my hourly rate?"** Edit `~/.claude/claude-time/config.toml`,
+- **"How do I add my hourly rate?"** Edit `~/.claude/payoff/config.toml`,
   set `[report] hourly_rate_usd = <rate>`. The cost column will then include
   your time.
 - **"Where do the session transcripts live?"**

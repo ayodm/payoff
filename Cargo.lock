@@ -203,28 +203,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
-name = "claude-time"
-version = "0.2.0-rc.2"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "chrono",
- "clap",
- "dirs",
- "git2",
- "indoc",
- "insta",
- "open",
- "predicates",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tiny_http",
- "toml",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -780,6 +758,28 @@ name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
+
+[[package]]
+name = "payoff"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "chrono",
+ "clap",
+ "dirs",
+ "git2",
+ "indoc",
+ "insta",
+ "open",
+ "predicates",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tiny_http",
+ "toml",
+]
 
 [[package]]
 name = "percent-encoding"

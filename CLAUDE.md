@@ -1,4 +1,4 @@
-# claude-time — current state
+# payoff — current state
 
 This file auto-loads when a Claude Code session starts in this directory.
 Read it first.
@@ -12,16 +12,17 @@ A passive ROI tracker for Claude Code itself. Measures whether Claude is
 "time saved" baseline. A session's diff that still exists in HEAD after N
 days = value; a diff that was reverted or rewritten = waste.
 
-- **Repo:** https://github.com/ayodm/claude-time (public)
-- **Latest:** v0.2.0-rc.2 pre-release on `main`. v0.1.2 remains the
-  stable on crates.io; `cargo install claude-time` keeps users on it.
+- **Repo:** https://github.com/ayodm/payoff (public)
+- **Latest:** v0.2.0 on `main`. Renamed from `claude-time` —
+  same code, new crate. `claude-time` v0.1.x and v0.2.0-rc.x stay on
+  crates.io as tombstones (yanked); new releases go out as `payoff`.
 - **Stack:** Rust (single binary, no runtime deps for users)
 - **Distribution:** crates.io + GitHub Releases + Claude Code plugin marketplace + Homebrew tap (planned)
 - **License:** MIT
 - **Commit identity for this repo:** `Ayo M <ayodm@me.com>`. The gmail
   address must NOT appear in commits. Local git config is set; verify with
   `git config user.email`.
-- **Installed on this machine:** `~/.cargo/bin/claude-time` (v0.2.0-rc.2
+- **Installed on this machine:** `~/.cargo/bin/payoff` (v0.2.0
   built locally) with hooks active in `~/.claude/settings.json`. Backup
   of pre-install settings at `~/.claude/settings.json.before-claude-time.bak`.
 
@@ -51,17 +52,17 @@ days = value; a diff that was reverted or rewritten = waste.
   files that absorbed edits but didn't survive. Three severity tiers:
   `SEVERE` (5+ edits, <10% retention), `ITERATED` (3+ edits, <50%),
   `LOST` (single edit, full loss).
-- **`claude-time serve`** — HTMX-driven local server (`src/serve.rs`,
+- **`payoff serve`** — HTMX-driven local server (`src/serve.rs`,
   `tiny_http`). Routes: `/`, `/window?since=X`, `/session/{id}`. Click a
   session row to expand per-file pinpoints inline.
 - **Output modes**: `report` defaults to HTML + browser open; `--stdout`
   pipes HTML; `--markdown` keeps the legacy terminal-readable path;
   `--serve` starts the server.
 
-### v0.2.0-rc.2 — driver capture + correlation
+### v0.2.0 — renamed from claude-time + driver capture + correlation
 
 Pre-release. Stable line stays on v0.1.2; this is opt-in via
-`cargo install claude-time --version 0.2.0-rc.2`. Plan source-of-truth at
+`cargo install payoff` (renamed from claude-time). Plan source-of-truth at
 `docs/v0.2.0-plan.md`; per-phase commits:
 
 - **Phase 0** (`eed3cbf`) — surface cache hit ratio + sessions-by-model
@@ -70,7 +71,7 @@ Pre-release. Stable line stays on v0.1.2; this is opt-in via
 - **Phase 1** (`b40cc55`) — new `src/env_capture.rs` snapshots
   active skills (user / project / enabled-plugin sources), CLAUDE.md
   file hashes (walked up to repo root, depth-cap 8), active hook
-  events (excluding our own `claude-time hook *`), and enabledPlugins
+  events (excluding our own `payoff hook *`), and enabledPlugins
   at SessionStart. Unknown payload keys collected into an `env_extras`
   bag for forward compat. Content hashing via inline FNV-1a 64-bit
   (no new dep).
@@ -96,7 +97,7 @@ buckets + tool-sequence 3-gram mining) are deferred — see plan.
   the hooks silently inert. v0.1.2 writes the wrapped shape
   `{hooks: [{type, command}]}` Claude Code expects
   (`src/install.rs::wrapped_entry`).
-- **Self-healing install.** Running `claude-time install` against a
+- **Self-healing install.** Running `payoff install` against a
   settings.json with legacy flat entries rewrites them in place. No
   duplicates, even from half-migrated states or accidental flat dups
   — `apply_hooks` collapses every configuration toward "exactly one
@@ -116,7 +117,7 @@ buckets + tool-sequence 3-gram mining) are deferred — see plan.
 - Uninstall removes wrapped, flat, and mixed-shape entries
 - `count_our_hooks` recognises both shapes
 - End-to-end integration test: seed settings.json with legacy shape,
-  run `claude-time install`, assert wrapped output
+  run `payoff install`, assert wrapped output
 
 Earlier v0.1.1 coverage (still present):
 - `per_file_edits` extraction from transcripts
@@ -129,17 +130,17 @@ Earlier v0.1.1 coverage (still present):
 
 ```
 .
-├── Cargo.toml                              # v0.2.0-rc.2; metadata for crates.io
+├── Cargo.toml                              # v0.2.0; metadata for crates.io
 ├── README.md                               # install routes + adoption section
 ├── LICENSE                                 # MIT
 ├── installer.sh                            # curl-shell installer
 ├── .claude-plugin/
-│   ├── plugin.json                         # plugin manifest (v0.2.0-rc.2)
+│   ├── plugin.json                         # plugin manifest (v0.2.0)
 │   └── marketplace.json                    # this repo IS its own marketplace
 ├── hooks/
 │   └── hooks.json                          # SessionStart + SessionEnd declarations
 ├── skills/
-│   └── claude-time-report/SKILL.md         # explains the HTML report on demand
+│   └── payoff-report/SKILL.md         # explains the HTML report on demand
 ├── src/
 │   ├── main.rs                             # bin entry → cli::run
 │   ├── lib.rs                              # module exports
@@ -185,9 +186,9 @@ Earlier v0.1.1 coverage (still present):
   Schwab order channel, but the spirit applies: when adding new external
   calls that could double-do something, never add retries by default.
 
-- **Plugin install path.** Users do `/plugin marketplace add ayodm/claude-time`
-  then `/plugin install claude-time@claude-time`. They still need the
-  binary on `$PATH` (`cargo install claude-time` or installer.sh).
+- **Plugin install path.** Users do `/plugin marketplace add ayodm/payoff`
+  then `/plugin install payoff@payoff`. They still need the
+  binary on `$PATH` (`cargo install payoff` or installer.sh).
 
 - **HTML is self-contained.** The rendered report works fine opened
   directly as a file. HTMX attrs are inert without a server but the
@@ -203,25 +204,25 @@ cargo test
 cargo install --path .
 
 # Try the report
-claude-time status
-claude-time report                       # writes ~/.claude/claude-time/last-report.html, opens
-claude-time report --since 30d --by project
-claude-time report --serve               # HTMX server on :7878
-claude-time report --markdown            # legacy
+payoff status
+payoff report                       # writes ~/.claude/payoff/last-report.html, opens
+payoff report --since 30d --by project
+payoff report --serve               # HTMX server on :7878
+payoff report --markdown            # legacy
 
 # Fake a session end-to-end:
 echo '{"session_id":"test","cwd":"'$PWD'","transcript_path":"/tmp/x.jsonl"}' \
-  | claude-time hook session-start
+  | payoff hook session-start
 echo '{"session_id":"test","cwd":"'$PWD'"}' \
-  | claude-time hook session-end
-ls ~/.claude/claude-time/sessions/
+  | payoff hook session-end
+ls ~/.claude/payoff/sessions/
 ```
 
 ## Cutting a release
 
 ```sh
-git tag v0.2.0-rc.2
-git push origin v0.2.0-rc.2
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 The release workflow handles the rest: cross-platform binaries (macOS
@@ -231,12 +232,12 @@ secret on the repo). Pre-release tags (`v*-rc.*`, `v*-beta.*`) are still
 picked up by the workflow; after release, mark the GitHub Release as
 pre-release with `gh release edit <tag> --prerelease` so users see the
 status flag. crates.io respects semver pre-release identifiers — bare
-`cargo install claude-time` keeps users on the latest stable.
+`cargo install payoff` keeps users on the latest stable.
 
-## Follow-ups (not in v0.2.0-rc.2)
+## Follow-ups (not in v0.2.0)
 
-- **Validate v0.2.0-rc.2 in live sessions** — open real Claude Code
-  sessions and confirm `~/.claude/claude-time/sessions/*.json` populates
+- **Validate v0.2.0 in live sessions** — open real Claude Code
+  sessions and confirm `~/.claude/payoff/sessions/*.json` populates
   with non-empty `active_skills`, `claude_md_files`, `active_hook_events`.
   Until that's done, the "experimental" disclaimer stays.
 - **Phase 3 — `UserPromptSubmit` hook** for prompt-shape capture (length,
@@ -244,10 +245,10 @@ status flag. crates.io respects semver pre-release identifiers — bare
   install migration impact, Claude Code payload key unverified. See plan.
 - **Phase 4 — cache buckets + tool-sequence 3-gram mining.** Builds on
   Phase 2's correlation infrastructure.
-- **Homebrew tap** — separate repo `ayodm/homebrew-claude-time` with
+- **Homebrew tap** — separate repo `ayodm/homebrew-payoff` with
   formula pulling from GitHub Release. Do this after v0.2.0 stable is
   tagged so the release URL stabilises.
-- **`claude-time inspect <session-id>`** — pretty-print one session.
+- **`payoff inspect <session-id>`** — pretty-print one session.
 - **Optional baseline-estimation slider** — opt-in `UserPromptSubmit` hook
   + 1-tap TUI prompt. Only if pinpoints prove too noisy.
 - **zstd compression of `archive.jsonl`** — tier-3 storage win (~95%
@@ -263,8 +264,8 @@ If you're a fresh Claude Code session opened here:
 1. You just read this file.
 2. `cargo test` to confirm 107 tests still pass.
 3. Check the open follow-ups list above. Most-likely next moves:
-   validate v0.2.0-rc.2 in a live Claude Code session (open the app,
-   work normally, then `claude-time report --serve` and confirm the
+   validate v0.2.0 in a live Claude Code session (open the app,
+   work normally, then `payoff report --serve` and confirm the
    Drivers section shows non-empty groups with the right environment
    features). After that, decide whether to promote to v0.2.0 stable or
    start Phase 3.

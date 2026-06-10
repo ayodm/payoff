@@ -4,9 +4,9 @@ use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
-    name = "claude-time",
+    name = "payoff",
     version,
-    about = "Passive-only ROI tracker for Claude Code sessions",
+    about = "Passive ROI tracker for AI coding sessions. Did the session pay off?",
     long_about = None,
 )]
 struct Cli {
@@ -158,7 +158,7 @@ fn run_html_report(
 
     if !no_open {
         if let Err(err) = open::that_detached(&dest) {
-            eprintln!("[claude-time] could not auto-open browser: {err}");
+            eprintln!("[payoff] could not auto-open browser: {err}");
         }
     }
     Ok(())

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# claude-time installer. Downloads the appropriate binary from the latest
-# GitHub Release and drops it in ~/.local/bin (or $CLAUDE_TIME_BIN_DIR).
+# payoff installer. Downloads the appropriate binary from the latest
+# GitHub Release and drops it in ~/.local/bin (or $PAYOFF_BIN_DIR).
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/ayodm/claude-time/main/installer.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/ayodm/payoff/main/installer.sh | bash
 #
 set -euo pipefail
 
-REPO="ayodm/claude-time"
-BIN_NAME="claude-time"
-BIN_DIR="${CLAUDE_TIME_BIN_DIR:-${HOME}/.local/bin}"
+REPO="ayodm/payoff"
+BIN_NAME="payoff"
+BIN_DIR="${PAYOFF_BIN_DIR:-${HOME}/.local/bin}"
 
 err() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 info() { printf '\033[32m==>\033[0m %s\n' "$*"; }

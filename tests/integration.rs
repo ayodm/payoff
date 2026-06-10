@@ -10,7 +10,7 @@ use std::process::Stdio;
 use tempfile::TempDir;
 
 fn bin(config_dir: &std::path::Path) -> Command {
-    let mut cmd = Command::cargo_bin("claude-time").unwrap();
+    let mut cmd = Command::cargo_bin("payoff").unwrap();
     cmd.env("CLAUDE_CONFIG_DIR", config_dir);
     cmd
 }
@@ -86,10 +86,10 @@ fn install_migrates_legacy_flat_entries() {
     let legacy = json!({
         "hooks": {
             "SessionStart": [
-                { "type": "command", "command": "claude-time hook session-start" }
+                { "type": "command", "command": "payoff hook session-start" }
             ],
             "SessionEnd": [
-                { "type": "command", "command": "claude-time hook session-end" }
+                { "type": "command", "command": "payoff hook session-end" }
             ]
         }
     });
@@ -107,8 +107,8 @@ fn install_migrates_legacy_flat_entries() {
     // Each event has exactly one entry, and that entry is a hook group with
     // our command inside `hooks: [...]` — the shape /doctor accepts.
     for (event, command) in [
-        ("SessionStart", "claude-time hook session-start"),
-        ("SessionEnd", "claude-time hook session-end"),
+        ("SessionStart", "payoff hook session-start"),
+        ("SessionEnd", "payoff hook session-end"),
     ] {
         let arr = v["hooks"][event].as_array().unwrap();
         assert_eq!(arr.len(), 1, "{event} has exactly one entry");
@@ -198,7 +198,7 @@ fn end_to_end_capture_and_report() {
         .success();
 
     // Session file should exist with both timestamps + diff stats.
-    let sessions_dir = config.path().join("claude-time").join("sessions");
+    let sessions_dir = config.path().join("payoff").join("sessions");
     let entries: Vec<_> = std::fs::read_dir(&sessions_dir)
         .unwrap()
         .filter_map(|e| e.ok())
@@ -219,7 +219,7 @@ fn end_to_end_capture_and_report() {
         .assert()
         .success()
         .stdout(contains("last-report.html"));
-    let html_path = config.path().join("claude-time").join("last-report.html");
+    let html_path = config.path().join("payoff").join("last-report.html");
     let html = std::fs::read_to_string(&html_path).unwrap();
     assert!(html.contains("<!DOCTYPE html>"));
     assert!(html.contains("Where time was wasted")); // pinpoint section
@@ -247,7 +247,7 @@ fn archive_command_compacts_old_sessions() {
     let config = TempDir::new().unwrap();
 
     // Pre-seed a session JSON dated long ago.
-    let sessions = config.path().join("claude-time").join("sessions");
+    let sessions = config.path().join("payoff").join("sessions");
     std::fs::create_dir_all(&sessions).unwrap();
     let record = json!({
         "session_id": "old1",
@@ -268,7 +268,7 @@ fn archive_command_compacts_old_sessions() {
         .stdout(contains("Archived 1 session"));
 
     assert!(!sessions.join("old1.json").exists());
-    let archive = config.path().join("claude-time").join("archive.jsonl");
+    let archive = config.path().join("payoff").join("archive.jsonl");
     assert!(archive.exists());
     let contents = std::fs::read_to_string(&archive).unwrap();
     assert!(contents.contains("\"session_id\":\"old1\""));

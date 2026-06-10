@@ -1,19 +1,19 @@
 {
-  "name": "claude-time",
+  "name": "payoff",
   "owner": {
     "name": "ayodm",
     "url": "https://github.com/ayodm"
   },
-  "description": "claude-time marketplace — currently hosts one plugin.",
+  "description": "payoff marketplace — currently hosts one plugin.",
   "plugins": [
     {
-      "name": "claude-time",
+      "name": "payoff",
       "source": ".",
-      "description": "Passive ROI tracker for Claude Code sessions.",
-      "version": "0.1.1",
+      "description": "Passive ROI tracker for AI coding sessions. Did the session pay off?",
+      "version": "0.2.0",
       "category": "productivity",
-      "tags": ["productivity", "telemetry", "roi", "retention"],
-      "homepage": "https://github.com/ayodm/claude-time"
+      "tags": ["productivity", "ai", "roi", "retention", "metrics"],
+      "homepage": "https://github.com/ayodm/payoff"
     }
   ]
 }

@@ -20,7 +20,7 @@ use std::path::Path;
 pub fn run(event: HookEvent) -> Result<()> {
     // Wrap the whole flow in a soft error: a hook never propagates failure.
     if let Err(err) = run_inner(event) {
-        eprintln!("[claude-time] hook {:?} failed: {err:#}", event);
+        eprintln!("[payoff] hook {:?} failed: {err:#}", event);
     }
     Ok(())
 }
@@ -127,7 +127,7 @@ fn populate_session_start(record: &mut SessionRecord) {
         let env = std::panic::catch_unwind(|| crate::env_capture::capture(Path::new(&cwd)));
         match env {
             Ok(env) => crate::env_capture::apply(record, env),
-            Err(_) => eprintln!("[claude-time] env_capture panicked; skipping driver fields"),
+            Err(_) => eprintln!("[payoff] env_capture panicked; skipping driver fields"),
         }
     }
 }
@@ -156,7 +156,7 @@ fn populate_session_end(record: &mut SessionRecord, _payload: &Value) {
                 record.cache_read_tokens = stats.cache_read_tokens;
                 record.cache_creation_tokens = stats.cache_creation_tokens;
             }
-            Err(err) => eprintln!("[claude-time] transcript parse failed: {err:#}"),
+            Err(err) => eprintln!("[payoff] transcript parse failed: {err:#}"),
         }
     }
 
@@ -173,7 +173,7 @@ fn populate_session_end(record: &mut SessionRecord, _payload: &Value) {
                         record.lines_removed = removed;
                         record.files_changed = files_changed;
                     }
-                    Err(err) => eprintln!("[claude-time] diff_files failed: {err:#}"),
+                    Err(err) => eprintln!("[payoff] diff_files failed: {err:#}"),
                 }
             }
         }

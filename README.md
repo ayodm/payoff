@@ -1,32 +1,33 @@
-# claude-time
+# payoff
 
-[![CI](https://github.com/ayodm/claude-time/actions/workflows/ci.yml/badge.svg)](https://github.com/ayodm/claude-time/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/claude-time.svg)](https://crates.io/crates/claude-time)
-[![crates.io downloads](https://img.shields.io/crates/d/claude-time.svg)](https://crates.io/crates/claude-time)
-[![license](https://img.shields.io/crates/l/claude-time.svg)](LICENSE)
+[![CI](https://github.com/ayodm/payoff/actions/workflows/ci.yml/badge.svg)](https://github.com/ayodm/payoff/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/payoff.svg)](https://crates.io/crates/payoff)
+[![crates.io downloads](https://img.shields.io/crates/d/payoff.svg)](https://crates.io/crates/payoff)
+[![license](https://img.shields.io/crates/l/payoff.svg)](LICENSE)
 
-> **v0.2.0-rc.2 is a pre-release.** Adds environment capture (which
-> skills, CLAUDE.md files, hooks, and plugins were active at
-> SessionStart) and a "Drivers" correlation view that groups sessions
-> by environment feature and shows retention/cost deltas vs the
-> all-sessions baseline. 107 unit tests + 16 simulated lifecycle
-> scenarios (every realistic SessionStart/SessionEnd flow plus
-> adversarial inputs: path-traversal session IDs, malformed
-> settings.json, mid-session CLAUDE.md rewrites, concurrent sessions
-> in different repos, XSS via stored fields) all pass. The remaining
-> unvalidated gap is **observing the hook fire from inside a real
-> Claude Code session** rather than from the synthetic harness; until
-> then the pre-release label stays. `cargo install claude-time` keeps
-> you on stable `0.1.2`; opt in explicitly:
+> **Renamed from `claude-time`.** Same project, new name — `payoff` says
+> what it does. `claude-time` v0.1.x and v0.2.0-rc.x stay on crates.io
+> as tombstones; new releases ship as `payoff`. Upgraders:
+> `payoff install` detects any legacy `claude-time hook *` entries in
+> your `~/.claude/settings.json` and rewrites them in place; the
+> `~/.claude/claude-time/` data dir gets moved to `~/.claude/payoff/`
+> on first run. Your session history is preserved.
 >
 > ```sh
-> cargo install claude-time --version 0.2.0-rc.2
+> cargo install payoff
 > ```
+>
+> 107 unit tests + 16 simulated lifecycle scenarios (every realistic
+> SessionStart/SessionEnd flow plus adversarial inputs: path-traversal
+> session IDs, malformed settings.json, mid-session CLAUDE.md rewrites,
+> concurrent sessions in different repos, XSS via stored fields) all
+> pass. Remaining unvalidated gap: observing the hook fire from inside
+> a real Claude Code session rather than from the synthetic harness.
 
-Passive-only ROI tracker for Claude Code sessions.
+Passive ROI tracker for AI coding sessions. Did the session pay off?
 
 Most tools tell you *what you did* with AI. None tell you *whether it was
-worth it*. `claude-time` answers the second question by substituting
+worth it*. `payoff` answers the second question by substituting
 **diff retention** for the unknowable "time saved" baseline: a session's
 value is proxied by whether its diff survived in the codebase over the
 next N days.
@@ -82,55 +83,55 @@ Three routes — pick whichever fits.
 **A. Rust users (smallest binary, latest version)**
 
 ```sh
-cargo install claude-time
-claude-time install
+cargo install payoff
+payoff install
 ```
 
 **B. No Rust toolchain (pre-built binary)**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/ayodm/claude-time/main/installer.sh | bash
-claude-time install
+curl -fsSL https://raw.githubusercontent.com/ayodm/payoff/main/installer.sh | bash
+payoff install
 ```
 
 **C. Claude Code plugin (hooks bundled, you still install the binary)**
 
 ```sh
 # In Claude Code:
-/plugin marketplace add ayodm/claude-time
-/plugin install claude-time@claude-time
+/plugin marketplace add ayodm/payoff
+/plugin install payoff@payoff
 
 # Then on your shell:
-cargo install claude-time          # or use route B
+cargo install payoff          # or use route B
 ```
 
 The plugin registers the SessionStart + SessionEnd hooks and ships a
-companion skill (`claude-time-report`) that explains the markdown report on
+companion skill (`payoff-report`) that explains the markdown report on
 demand. You still need the binary on `$PATH` for the hooks to do anything.
 
 Verify any of the above:
 
 ```sh
-claude-time status
+payoff status
 ```
 
 ## Use
 
 ```sh
-claude-time report                       # writes HTML + opens browser
-claude-time report --since 30d           # window control
-claude-time report --by project          # group by project
-claude-time report --retention-window 14
-claude-time report --serve               # HTMX-driven local server
-claude-time report --stdout              # HTML to stdout (CI / piping)
-claude-time report --markdown            # legacy terminal-readable
-claude-time archive                      # compact old sessions on demand
-claude-time uninstall                    # remove hooks; keep data dir
+payoff report                       # writes HTML + opens browser
+payoff report --since 30d           # window control
+payoff report --by project          # group by project
+payoff report --retention-window 14
+payoff report --serve               # HTMX-driven local server
+payoff report --stdout              # HTML to stdout (CI / piping)
+payoff report --markdown            # legacy terminal-readable
+payoff archive                      # compact old sessions on demand
+payoff uninstall                    # remove hooks; keep data dir
 ```
 
 ## Storage
 
-`claude-time` stores data under `~/.claude/claude-time/`:
+`payoff` stores data under `~/.claude/payoff/`:
 
 ```
 sessions/<session_id>.json      # in-flight + recent closed sessions
@@ -141,7 +142,7 @@ config.toml                     # user overrides
 
 **Disk footprint.** A compact session record is ~250 bytes. The hot path
 (per-session files) costs one 4 KB filesystem block per session — fine for
-the most recent week, wasteful for years of history. So `claude-time report`
+the most recent week, wasteful for years of history. So `payoff report`
 runs an opportunistic archive: closed sessions older than the retention
 window get rolled into a single append-only `archive.jsonl`, the per-session
 files are deleted, and block overhead vanishes.
@@ -153,20 +154,20 @@ Measured (100 sessions, macOS APFS):
 | Per-session files | 400 KB |
 | `archive.jsonl` after rollup | 20 KB |
 
-Heavy use (~50 sessions/day) projects to **~5 MB/year** of total claude-time
+Heavy use (~50 sessions/day) projects to **~5 MB/year** of total payoff
 data. The Claude Code transcripts themselves (under `~/.claude/projects/`)
 are typically much larger; set `cleanupPeriodDays` in your Claude Code
-settings if those bother you — claude-time only needs the transcripts during
+settings if those bother you — payoff only needs the transcripts during
 the session that produced them.
 
 ## Config
 
-`~/.claude/claude-time/config.toml` (created on first edit):
+`~/.claude/payoff/config.toml` (created on first edit):
 
 ```toml
 [report]
 retention_window_days = 7
-hourly_rate_usd = 0.0     # 0.0 = claude-time reports only $ cost from Claude
+hourly_rate_usd = 0.0     # 0.0 = payoff reports only $ cost from Claude
 default_period = "7d"
 
 [exclude]
@@ -178,12 +179,12 @@ paths = [".git", "node_modules", "target", "dist", ".next", "_build", "deps"]
 
 ## Adoption
 
-claude-time is intentionally untelemetered — no install beacon, no upload of
+payoff is intentionally untelemetered — no install beacon, no upload of
 session data, nothing leaves your machine. Adoption shows up only via
 registry-native counts:
 
-- crates.io download counts on the [package page](https://crates.io/crates/claude-time)
-- GitHub Release asset download counts on each [release](https://github.com/ayodm/claude-time/releases)
+- crates.io download counts on the [package page](https://crates.io/crates/payoff)
+- GitHub Release asset download counts on each [release](https://github.com/ayodm/payoff/releases)
 - GitHub stars / forks / traffic insights
 
 If you find it useful, a star on GitHub is the most direct signal.
@@ -194,7 +195,7 @@ If you find it useful, a star on GitHub is the most direct signal.
   something you reused tomorrow has positive value even if its specific
   diff was reverted. The report's "learning value" footer acknowledges
   this.
-- **Rebases destroy the signal.** If you squash before merging, claude-time
+- **Rebases destroy the signal.** If you squash before merging, payoff
   marks affected sessions as `REBASED` rather than guessing. You'll see
   `REBASED` counts in the report; tune your retention window or skip the
   squash if it matters to you.

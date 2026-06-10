@@ -2,7 +2,7 @@
 //! src/transcript.rs::tests. Each test names exactly what behavior is
 //! checked and the hand-computed expected values.
 
-use claude_time::transcript::parse;
+use payoff::transcript::parse;
 use serde_json::{json, Value};
 use std::io::Write;
 use tempfile::NamedTempFile;

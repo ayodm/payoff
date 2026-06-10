@@ -20,9 +20,27 @@ pub fn settings_json() -> Result<PathBuf> {
     Ok(claude_config_dir()?.join("settings.json"))
 }
 
-/// claude-time's data root. All session records + caches live below this.
+/// payoff's data root. All session records + caches live below this.
+///
+/// On first call, if `~/.claude/claude-time/` exists from a prior
+/// claude-time install and `~/.claude/payoff/` does not, rename the legacy
+/// dir over. This is a best-effort migration — failure logs to stderr but
+/// doesn't propagate, so a permission glitch doesn't break the hook.
 pub fn data_dir() -> Result<PathBuf> {
-    Ok(claude_config_dir()?.join("claude-time"))
+    let new_dir = claude_config_dir()?.join("payoff");
+    if !new_dir.exists() {
+        let legacy = claude_config_dir()?.join("claude-time");
+        if legacy.exists() {
+            if let Err(err) = std::fs::rename(&legacy, &new_dir) {
+                eprintln!(
+                    "[payoff] could not migrate legacy data dir {} -> {}: {err}",
+                    legacy.display(),
+                    new_dir.display()
+                );
+            }
+        }
+    }
+    Ok(new_dir)
 }
 
 pub fn sessions_dir() -> Result<PathBuf> {

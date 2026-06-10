@@ -17,9 +17,14 @@ use serde_json::{json, Map, Value};
 use std::fs;
 
 const HOOK_EVENTS: &[(&str, &str)] = &[
-    ("SessionStart", "claude-time hook session-start"),
-    ("SessionEnd", "claude-time hook session-end"),
+    ("SessionStart", "payoff hook session-start"),
+    ("SessionEnd", "payoff hook session-end"),
 ];
+
+/// Legacy command prefixes from this tool's prior name (`claude-time`). On
+/// install we strip any of these so a user upgrading from `claude-time`
+/// doesn't end up with both old and new hook entries firing in parallel.
+const LEGACY_COMMAND_PREFIXES: &[&str] = &["claude-time hook "];
 
 pub fn install() -> Result<()> {
     crate::paths::ensure_dirs()?;
@@ -37,7 +42,7 @@ pub fn install() -> Result<()> {
         .with_context(|| format!("writing {}", settings_path.display()))?;
 
     match (added, migrated) {
-        (0, 0) => println!("claude-time hooks already installed; no changes to settings.json."),
+        (0, 0) => println!("payoff hooks already installed; no changes to settings.json."),
         (a, 0) => println!("Installed {a} hook entries in {}.", settings_path.display()),
         (0, m) => println!(
             "Migrated {m} legacy hook entries to the current shape in {}.",
@@ -68,7 +73,7 @@ pub fn uninstall() -> Result<()> {
     fs::write(&settings_path, serialized)?;
 
     println!(
-        "Removed {removed} claude-time hook entries from {}.",
+        "Removed {removed} payoff hook entries from {}.",
         settings_path.display()
     );
     println!(
@@ -135,6 +140,11 @@ fn apply_hooks(root: &mut Value) -> Result<(usize, usize)> {
             Some(a) => a,
             None => anyhow::bail!("`hooks.{event}` is not an array"),
         };
+
+        // Strip any entries from prior tool names (e.g. `claude-time hook *`)
+        // BEFORE applying the new ones, so an upgrader doesn't end up with
+        // both old and new hooks firing in parallel.
+        migrated += strip_legacy_prefix_entries(arr);
 
         // Two-pass: scan first so we can pick the right migration strategy,
         // then mutate. The goal is "exactly one wrapped entry of ours in this
@@ -247,6 +257,48 @@ fn count_our_hooks(root: &Value) -> usize {
         .count()
 }
 
+/// Remove any entry in the array whose command (flat or wrapped) starts
+/// with one of the legacy prefixes from prior tool names. Returns the
+/// number of commands removed (counts across both shapes). Used during
+/// install to clean up after a rename so the upgrader doesn't end up with
+/// duplicate hooks firing.
+fn strip_legacy_prefix_entries(arr: &mut Vec<Value>) -> usize {
+    let starts_with_any = |cmd: &str| LEGACY_COMMAND_PREFIXES.iter().any(|p| cmd.starts_with(p));
+    let mut removed = 0usize;
+
+    // Drop top-level flat entries with a legacy prefix.
+    let before = arr.len();
+    arr.retain(|item| {
+        !item
+            .get("command")
+            .and_then(|c| c.as_str())
+            .map(starts_with_any)
+            .unwrap_or(false)
+    });
+    removed += before - arr.len();
+
+    // Strip legacy commands from wrapped entries' inner arrays.
+    for item in arr.iter_mut() {
+        if let Some(inner) = item.get_mut("hooks").and_then(|h| h.as_array_mut()) {
+            let before_inner = inner.len();
+            inner.retain(|e| {
+                !e.get("command")
+                    .and_then(|c| c.as_str())
+                    .map(starts_with_any)
+                    .unwrap_or(false)
+            });
+            removed += before_inner - inner.len();
+        }
+    }
+    // Drop wrapped entries whose inner array is now empty.
+    arr.retain(|item| match item.get("hooks").and_then(|h| h.as_array()) {
+        Some(inner) => !inner.is_empty(),
+        None => true,
+    });
+
+    removed
+}
+
 fn wrapped_entry(command: &str) -> Value {
     json!({
         "hooks": [
@@ -307,7 +359,7 @@ mod tests {
         let inner = entry["hooks"].as_array().unwrap();
         assert_eq!(inner.len(), 1);
         assert_eq!(inner[0]["type"], "command");
-        assert_eq!(inner[0]["command"], "claude-time hook session-start");
+        assert_eq!(inner[0]["command"], "payoff hook session-start");
     }
 
     #[test]
@@ -321,9 +373,9 @@ mod tests {
     }
 
     #[test]
-    fn install_migrates_legacy_flat_entry() {
-        // Simulate a settings.json written by v0.1.x: our command sitting as a
-        // top-level flat entry alongside a user-defined wrapped block.
+    fn install_strips_legacy_claude_time_flat_entry_and_adds_payoff() {
+        // Simulate a settings.json written by claude-time v0.1.x or v0.1.2:
+        // a flat `claude-time hook *` entry that the rename must clear.
         let mut root = json!({
             "hooks": {
                 "SessionStart": [
@@ -336,37 +388,31 @@ mod tests {
             }
         });
         let (added, migrated) = apply_hooks(&mut root).unwrap();
-        assert_eq!(
-            added, 0,
-            "no new entries — both already present in flat shape"
-        );
-        assert_eq!(migrated, 2, "both flat entries rewritten as wrapped");
+        // Both legacy claude-time entries stripped, both payoff entries added.
+        assert_eq!(added, 2, "two new payoff entries appended");
+        assert_eq!(migrated, 2, "two legacy claude-time entries stripped");
 
-        // Our SessionStart entry is now wrapped, and the user's entry survived.
         let ss = root["hooks"]["SessionStart"].as_array().unwrap();
-        assert_eq!(ss.len(), 2);
-        assert!(ss
-            .iter()
-            .any(|i| is_wrapped_match(i, "claude-time hook session-start")));
-        assert!(ss.iter().any(|i| is_wrapped_match(i, "user-tool")));
-        // No flat entry of ours remains.
+        // Old claude-time entry gone, user hook intact, new payoff entry present.
         assert!(!ss
             .iter()
-            .any(|i| is_flat_match(i, "claude-time hook session-start")));
+            .any(|i| is_flat_match(i, "claude-time hook session-start")
+                || is_wrapped_match(i, "claude-time hook session-start")));
+        assert!(ss.iter().any(|i| is_wrapped_match(i, "user-tool")));
+        assert!(ss
+            .iter()
+            .any(|i| is_wrapped_match(i, "payoff hook session-start")));
 
-        // Status counts the migrated entries.
         assert_eq!(count_our_hooks(&root), 2);
     }
 
     #[test]
-    fn install_dedupes_half_migrated_state() {
-        // A previous install attempt could have left both a legacy flat entry
-        // and a freshly-added wrapped entry side by side. apply_hooks should
-        // collapse this to one wrapped entry, not produce two.
+    fn install_strips_legacy_wrapped_claude_time_entry() {
+        // claude-time v0.1.2 wrote wrapped entries. The rename also handles
+        // those — they're stripped, payoff entries appended in their place.
         let mut root = json!({
             "hooks": {
                 "SessionStart": [
-                    { "type": "command", "command": "claude-time hook session-start" },
                     { "hooks": [{ "type": "command", "command": "claude-time hook session-start" }] }
                 ],
                 "SessionEnd": [
@@ -375,51 +421,80 @@ mod tests {
             }
         });
         let (added, migrated) = apply_hooks(&mut root).unwrap();
-        assert_eq!(added, 0);
-        assert_eq!(migrated, 1, "the leftover flat entry counts as cleaned up");
+        assert_eq!(added, 2);
+        assert_eq!(migrated, 2);
+
         let ss = root["hooks"]["SessionStart"].as_array().unwrap();
-        assert_eq!(ss.len(), 1, "duplicates collapsed");
-        assert!(is_wrapped_match(&ss[0], "claude-time hook session-start"));
+        assert_eq!(ss.len(), 1, "only the new payoff entry remains");
+        assert!(is_wrapped_match(&ss[0], "payoff hook session-start"));
     }
 
     #[test]
-    fn install_collapses_duplicate_flat_entries() {
-        // Two flat copies of our command — rewrite the first to wrapped, drop
-        // the second. Net: one wrapped entry.
+    fn install_strips_legacy_command_living_alongside_user_in_shared_wrapped() {
+        // A wrapped block holding both claude-time and a user command — the
+        // legacy command must be stripped without dropping the user's entry.
         let mut root = json!({
             "hooks": {
                 "SessionStart": [
-                    { "type": "command", "command": "claude-time hook session-start" },
-                    { "type": "command", "command": "claude-time hook session-start" }
+                    {
+                        "hooks": [
+                            { "type": "command", "command": "claude-time hook session-start" },
+                            { "type": "command", "command": "user-tool" }
+                        ]
+                    }
+                ]
+            }
+        });
+        let (_, migrated) = apply_hooks(&mut root).unwrap();
+        assert!(migrated >= 1, "at least one legacy command removed");
+        let ss = root["hooks"]["SessionStart"].as_array().unwrap();
+        // The original wrapped block with user-tool survives (without
+        // claude-time), and a separate payoff entry is appended.
+        let user_block = ss
+            .iter()
+            .find(|i| is_wrapped_match(i, "user-tool"))
+            .expect("user-tool block intact");
+        let inner = user_block["hooks"].as_array().unwrap();
+        assert_eq!(inner.len(), 1);
+        assert_eq!(inner[0]["command"], "user-tool");
+        // payoff entry added separately.
+        assert!(ss
+            .iter()
+            .any(|i| is_wrapped_match(i, "payoff hook session-start")));
+    }
+
+    #[test]
+    fn install_dedupes_half_migrated_payoff_state() {
+        // Pre-existing both a flat payoff entry and a wrapped payoff entry —
+        // collapse to one wrapped, don't end up with two firing.
+        let mut root = json!({
+            "hooks": {
+                "SessionStart": [
+                    { "type": "command", "command": "payoff hook session-start" },
+                    { "hooks": [{ "type": "command", "command": "payoff hook session-start" }] }
                 ],
                 "SessionEnd": [
-                    { "hooks": [{ "type": "command", "command": "claude-time hook session-end" }] }
+                    { "hooks": [{ "type": "command", "command": "payoff hook session-end" }] }
                 ]
             }
         });
         let (added, migrated) = apply_hooks(&mut root).unwrap();
         assert_eq!(added, 0);
-        assert_eq!(migrated, 2);
+        assert_eq!(migrated, 1, "the leftover flat payoff entry was cleaned up");
         let ss = root["hooks"]["SessionStart"].as_array().unwrap();
-        assert_eq!(ss.len(), 1);
-        assert!(is_wrapped_match(&ss[0], "claude-time hook session-start"));
+        assert_eq!(ss.len(), 1, "duplicates collapsed");
+        assert!(is_wrapped_match(&ss[0], "payoff hook session-start"));
     }
 
     #[test]
-    fn install_after_migration_is_idempotent() {
-        // Re-running install on already-migrated settings is a no-op.
-        let mut root = json!({
-            "hooks": {
-                "SessionStart": [
-                    { "type": "command", "command": "claude-time hook session-start" }
-                ]
-            }
-        });
-        let (_, migrated_first) = apply_hooks(&mut root).unwrap();
-        assert_eq!(migrated_first, 1);
+    fn install_after_install_is_idempotent() {
+        // Re-running install when already installed should be a no-op.
+        let mut root = fresh_root();
+        apply_hooks(&mut root).unwrap();
         let (added, migrated) = apply_hooks(&mut root).unwrap();
         assert_eq!(added, 0);
         assert_eq!(migrated, 0);
+        assert_eq!(count_our_hooks(&root), 2);
     }
 
     #[test]
@@ -441,7 +516,7 @@ mod tests {
         assert!(our_command_present(session_start, "my-existing-hook"));
         assert!(our_command_present(
             session_start,
-            "claude-time hook session-start"
+            "payoff hook session-start"
         ));
 
         // Unrelated hook events untouched.
@@ -449,7 +524,7 @@ mod tests {
     }
 
     #[test]
-    fn uninstall_removes_wrapped_entries() {
+    fn uninstall_removes_wrapped_payoff_entries() {
         let mut root = fresh_root();
         apply_hooks(&mut root).unwrap();
         // Add a user hook alongside, wrapped (modern shape).
@@ -466,26 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn uninstall_removes_legacy_flat_entries() {
-        // Users who installed v0.1.x have flat entries — uninstall must clear
-        // them too, or the upgrade path leaves broken hooks behind.
-        let mut root = json!({
-            "hooks": {
-                "SessionStart": [
-                    { "type": "command", "command": "claude-time hook session-start" }
-                ],
-                "SessionEnd": [
-                    { "type": "command", "command": "claude-time hook session-end" }
-                ]
-            }
-        });
-        let removed = remove_hooks(&mut root);
-        assert_eq!(removed, 2);
-        assert!(root.get("hooks").is_none(), "empty hooks block pruned");
-    }
-
-    #[test]
-    fn uninstall_strips_our_command_from_shared_wrapped_entry() {
+    fn uninstall_strips_payoff_from_shared_wrapped_entry() {
         // A wrapped entry that holds both our command and a user command —
         // strip ours, keep the rest, don't drop the wrapper.
         let mut root = json!({
@@ -493,7 +549,7 @@ mod tests {
                 "SessionStart": [
                     {
                         "hooks": [
-                            { "type": "command", "command": "claude-time hook session-start" },
+                            { "type": "command", "command": "payoff hook session-start" },
                             { "type": "command", "command": "user-tool" }
                         ]
                     }
@@ -520,13 +576,14 @@ mod tests {
 
     #[test]
     fn count_our_hooks_recognises_both_shapes() {
+        // count_our_hooks looks for payoff entries in either shape.
         let root = json!({
             "hooks": {
                 "SessionStart": [
-                    { "type": "command", "command": "claude-time hook session-start" }
+                    { "type": "command", "command": "payoff hook session-start" }
                 ],
                 "SessionEnd": [
-                    { "hooks": [{ "type": "command", "command": "claude-time hook session-end" }] }
+                    { "hooks": [{ "type": "command", "command": "payoff hook session-end" }] }
                 ]
             }
         });

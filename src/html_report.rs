@@ -50,12 +50,12 @@ pub fn render(sessions: &[SessionRecord], cfg: &Config, by: Option<&str>) -> Str
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>claude-time report</title>
+<title>payoff report</title>
 <style>{css}</style>
 </head>
 <body hx-boost="false">
 <header class="topbar">
-  <div class="brand">claude-time</div>
+  <div class="brand">payoff</div>
   <div class="meta">{count} sessions · ${total_cost:.2} · {window}</div>
 </header>
 

@@ -1,4 +1,4 @@
-//! HTMX-driven local HTTP server for the claude-time report.
+//! HTMX-driven local HTTP server for the payoff report.
 //!
 //! Tiny, synchronous, single-threaded (per-request handle on the main loop).
 //! Routes:
@@ -20,17 +20,17 @@ pub fn run(port: u16) -> Result<()> {
     let server = Server::http(&bind).map_err(|e| anyhow!("bind {bind}: {e}"))?;
     let url = format!("http://{bind}");
 
-    println!("claude-time report at {url}");
+    println!("payoff report at {url}");
     println!("(Ctrl+C to stop)");
 
     // Best-effort browser open. Failure is fine — the URL is printed above.
     if let Err(err) = open::that_detached(&url) {
-        eprintln!("[claude-time serve] could not auto-open browser: {err}");
+        eprintln!("[payoff serve] could not auto-open browser: {err}");
     }
 
     for request in server.incoming_requests() {
         if let Err(err) = handle(request) {
-            eprintln!("[claude-time serve] request handler: {err:#}");
+            eprintln!("[payoff serve] request handler: {err:#}");
         }
     }
     Ok(())

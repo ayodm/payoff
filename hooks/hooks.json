@@ -3,14 +3,14 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "claude-time hook session-start" }
+          { "type": "command", "command": "payoff hook session-start" }
         ]
       }
     ],
     "SessionEnd": [
       {
         "hooks": [
-          { "type": "command", "command": "claude-time hook session-end" }
+          { "type": "command", "command": "payoff hook session-end" }
         ]
       }
     ]

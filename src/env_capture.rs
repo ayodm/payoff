@@ -22,8 +22,10 @@ const CLAUDE_MD_WALK_DEPTH: usize = 8;
 /// Per-event hook command prefixes we consider "ours" and exclude from
 /// `active_hook_events` counts. Otherwise the correlation layer would
 /// discover the meaningless pattern "every session has a SessionStart hook"
-/// (because we put it there).
-const OUR_HOOK_COMMAND_PREFIX: &str = "claude-time hook ";
+/// (because we put it there). Includes the prior tool name (`claude-time`)
+/// so upgraders whose hooks haven't been re-`payoff install`ed yet still
+/// see clean data.
+const OUR_HOOK_COMMAND_PREFIXES: &[&str] = &["payoff hook ", "claude-time hook "];
 
 #[derive(Debug, Default, Clone)]
 pub struct CapturedEnv {
@@ -124,7 +126,8 @@ fn count_non_ours_hooks(settings: &Value) -> BTreeMap<String, u32> {
             // Two valid shapes: flat `{type, command}` (v0.1.x legacy) and
             // wrapped `{hooks: [{type, command}]}` (current). Walk both.
             for cmd in iter_commands_in_entry(entry) {
-                if !cmd.starts_with(OUR_HOOK_COMMAND_PREFIX) {
+                let is_ours = OUR_HOOK_COMMAND_PREFIXES.iter().any(|p| cmd.starts_with(p));
+                if !is_ours {
                     count += 1;
                 }
             }
@@ -313,11 +316,14 @@ mod tests {
     }
 
     #[test]
-    fn count_non_ours_hooks_excludes_our_commands() {
-        // Wrapped shape with both our hook + a user hook on the same event.
+    fn count_non_ours_hooks_excludes_payoff_and_legacy_claude_time() {
+        // Wrapped shape with payoff (current) hook, claude-time (legacy)
+        // hook, and a real user hook on the same event. Only the user hook
+        // counts; both ours and our legacy-name predecessor are excluded.
         let settings = serde_json::json!({
             "hooks": {
                 "SessionStart": [
+                    { "hooks": [{ "type": "command", "command": "payoff hook session-start" }] },
                     { "hooks": [{ "type": "command", "command": "claude-time hook session-start" }] },
                     { "hooks": [{ "type": "command", "command": "my-tool" }] }
                 ],
@@ -330,14 +336,14 @@ mod tests {
         assert_eq!(
             m.get("SessionStart").copied(),
             Some(1),
-            "only user-tool counts"
+            "only user-tool counts; payoff + claude-time both excluded"
         );
         assert_eq!(m.get("PostToolUse").copied(), Some(1));
         // Event with zero non-ours commands shouldn't appear at all.
         let settings_only_ours = serde_json::json!({
             "hooks": {
                 "SessionEnd": [
-                    { "hooks": [{ "type": "command", "command": "claude-time hook session-end" }] }
+                    { "hooks": [{ "type": "command", "command": "payoff hook session-end" }] }
                 ]
             }
         });
@@ -501,7 +507,7 @@ mod tests {
             r#"{
             "hooks": {
                 "SessionStart": [
-                    { "hooks": [{ "type": "command", "command": "claude-time hook session-start" }] },
+                    { "hooks": [{ "type": "command", "command": "payoff hook session-start" }] },
                     { "hooks": [{ "type": "command", "command": "my-tool" }] }
                 ]
             },

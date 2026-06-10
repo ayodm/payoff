@@ -12,12 +12,12 @@
 //! Run with `cargo test --test scoring_accuracy -- --nocapture` to see the
 //! computed-vs-expected values inline.
 
-use claude_time::git_history::{pinpoint_waste, score, score_per_file};
-use claude_time::model::{
+use git2::{Oid, Repository, Signature};
+use payoff::git_history::{pinpoint_waste, score, score_per_file};
+use payoff::model::{
     classify, FileDiff, PinpointSeverity, Quadrant, RetentionOutcome, SessionRecord, WastePinpoint,
     COST_HIGH_USD, RETENTION_HIGH,
 };
-use git2::{Oid, Repository, Signature};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;

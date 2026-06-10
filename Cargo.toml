@@ -1,6 +1,6 @@
 [package]
 name = "payoff"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
 description = "Passive-only ROI tracker for AI coding sessions. Did the session pay off? Measured by what survived in HEAD."

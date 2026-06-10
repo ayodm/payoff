@@ -65,10 +65,6 @@ payoff install      # self-heals: rewrites flat entries to wrapped, no dupes
 `~/.claude/settings.json` points at the same binary `which payoff` resolves
 to (a stale install elsewhere on `$PATH` is the usual culprit).
 
-**Upgrading from `claude-time`** — `payoff install` strips any legacy
-`claude-time hook *` entries and migrates the `~/.claude/claude-time/` data
-dir to `~/.claude/payoff/` on first run. History is preserved.
-
 **Want to back out** — `payoff uninstall` removes our hooks (flat or wrapped)
 and leaves the data dir alone. A pre-install backup may exist at
 `~/.claude/settings.json.before-payoff.bak`.

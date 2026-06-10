@@ -1,6 +1,6 @@
 {
   "name": "payoff",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Passive ROI tracker for AI coding sessions. Did the session pay off? Measured by what survived in HEAD.",
   "author": {
     "name": "Ayo Mosanya"

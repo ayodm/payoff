@@ -10,7 +10,7 @@
       "name": "payoff",
       "source": ".",
       "description": "Passive ROI tracker for AI coding sessions. Did the session pay off?",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "category": "productivity",
       "tags": ["productivity", "ai", "roi", "retention", "metrics"],
       "homepage": "https://github.com/ayodm/payoff"
